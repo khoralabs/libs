@@ -13,6 +13,15 @@ export type RootTokenAdminAuthOptions = {
   loginRateLimit?: RateLimitRule | null;
 };
 
+function readBearerToken(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (header === null) return null;
+  const match = /^Bearer\s+(\S+)/i.exec(header.trim());
+  if (match === null) return null;
+  const token = match[1] ?? "";
+  return token.length > 0 ? token : null;
+}
+
 export function createRootTokenAdminAuth(options: RootTokenAdminAuthOptions): AdminTokenAuth {
   const { rootToken, secureCookies = false, loginRateLimit = null } = options;
   const cookieOptions = { secure: secureCookies };
@@ -20,6 +29,10 @@ export function createRootTokenAdminAuth(options: RootTokenAdminAuthOptions): Ad
 
   return {
     async authenticate(req: Request): Promise<AdminPrincipal | null> {
+      const bearer = readBearerToken(req);
+      if (bearer !== null && tokensEqual(bearer, rootToken)) {
+        return { id: "root", role: "root" };
+      }
       return readSessionPrincipal(req, rootToken);
     },
 
